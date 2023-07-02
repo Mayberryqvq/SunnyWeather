@@ -32,11 +32,17 @@ class WeatherActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_weather)
+        //设置沉浸式状态栏
         val decorView = window.decorView
         decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         window.addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS)
         window.addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION)
         window.statusBarColor = Color.TRANSPARENT
+        /**
+         * 从Intent中取出经纬度坐标和地区名称，并赋值到WeatherViewModel的相应变量中
+         * 对weatherLiveData对象进行观察，当获取到服务器返回的天气数据时，就调用showWeatherInfo()进行解析与展示
+         * 调用了WeatherViewModel的refreshWeather()方法来执行一次刷新天气的请求。
+         **/
         if (viewModel.locationLng.isEmpty()) {
             viewModel.locationLng = intent.getStringExtra("location_lng") ?: ""
         }
@@ -54,16 +60,21 @@ class WeatherActivity : AppCompatActivity() {
                 Toast.makeText(this, "无法成功获取天气信息", Toast.LENGTH_SHORT).show()
                 result.exceptionOrNull()?.printStackTrace()
             }
+            //隐藏刷新进度条
             swipeRefresh.isRefreshing = false
         })
+        //设置下拉刷新进度条的颜色
         swipeRefresh.setColorSchemeResources(R.color.purple_500)
         refreshWeather()
+        //当触发下拉刷新操作时，就调用刷新天气信息的方法
         swipeRefresh.setOnRefreshListener {
             refreshWeather()
         }
+        //点击切换城市按钮，打开滑动菜单
         navBtn.setOnClickListener {
             drawerLayout.openDrawer(GravityCompat.START)
         }
+        //监听DrawerLayout的状态
         drawerLayout.addDrawerListener(object : DrawerLayout.DrawerListener {
             override fun onDrawerStateChanged(newState: Int) {}
 
@@ -71,6 +82,7 @@ class WeatherActivity : AppCompatActivity() {
 
             override fun onDrawerOpened(drawerView: View) {}
 
+            //当滑动菜单被隐藏的时候，同时也要隐藏输入法
             override fun onDrawerClosed(drawerView: View) {
                 val manager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                 manager.hideSoftInputFromWindow(drawerView.windowToken, InputMethodManager.HIDE_NOT_ALWAYS)
@@ -79,10 +91,18 @@ class WeatherActivity : AppCompatActivity() {
     }
 
     fun refreshWeather() {
+        //调用刷新天气的方法
         viewModel.refreshWeather(viewModel.locationLng, viewModel.locationLat)
+        //显示下拉刷新进度条
         swipeRefresh.isRefreshing = true
     }
 
+    /**
+     * 从Weather对象中获取数据，然后显示到相应控件上
+     * 在未来几天天气预报部分，我们使用一个for-in循环来处理
+     * 每天的天气信息，在循环中动态加载forecast_item.xml布局并设置相应的数据
+     * 然后添加到父布局中
+     **/
     private fun showWeatherInfo(weather: Weather) {
         placeName.text = viewModel.placeName
         val realtime = weather.realtime
